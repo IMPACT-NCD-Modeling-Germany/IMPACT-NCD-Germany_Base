@@ -1,5 +1,5 @@
 # Base image with R and prerequisites
-FROM prerequisite.impactncdjpn:local
+FROM kalleef/prerequisite.impactncdger:latest
 # Maintainer information
 LABEL maintainer="Karl Emmmert-Fees <karl.emmmert-fees@tum.de>" 
 
@@ -7,7 +7,7 @@ LABEL maintainer="Karl Emmmert-Fees <karl.emmmert-fees@tum.de>"
 ARG SOURCE_METHOD=copy
 
 # Method 1: Copy from build context (only when using copy method)
-# Build context should be the parent directory that contains docker_setup: docker build -f Dockerfile.IMPACTncdJPN -t impactncd_japan ..
+# Build context should be the parent directory that contains docker_setup: docker build -f Dockerfile.IMPACTncdGER -t impactncd_germany ..
 # Note: For git method, you can use an empty build context or the docker_setup directory to minimize copying
 RUN if [ "$SOURCE_METHOD" = "copy" ]; then \
         echo "Copy method selected - will copy build context"; \
@@ -23,8 +23,8 @@ COPY . /tmp/build_context/
 # Process the copied content only if using copy method
 RUN if [ "$SOURCE_METHOD" = "copy" ]; then \
         echo "Using copy method - setting up from build context" && \
-        mkdir -p /IMPACTncd_Japan && \
-        mv /tmp/build_context/* /IMPACTncd_Japan/ && \
+        mkdir -p /IMPACTncd_Germany && \
+        mv /tmp/build_context/* /IMPACTncd_Germany/ && \
         echo "Local files moved successfully"; \
     fi && \
     rm -rf /tmp/build_context
@@ -33,13 +33,13 @@ RUN if [ "$SOURCE_METHOD" = "copy" ]; then \
 # This will be dynamically updated by GitHub Actions to clone the correct branch
 RUN if [ "$SOURCE_METHOD" = "git" ]; then \
         echo "Using git method - cloning from GitHub" && \
-        git clone https://github.com/ChristK/IMPACTncd_Japan.git /IMPACTncd_Japan && \
+        git clone https://github.com/IMPACT-NCD-Modeling-Germany/IMPACT-NCD-Germany_Base.git /IMPACTncd_Germany && \
         echo "Repository cloned successfully"; \
     fi
 
 
 # Reconstruct large files from their chunks that are stored on GitHub
-RUN cd /IMPACTncd_Japan && \
+RUN cd /IMPACTncd_Germany && \
     if [ -f "./simulation/large_files_indx.csv" ]; then \
         tail -n +2 "./simulation/large_files_indx.csv" | while IFS=, read -r pths rest; do \
             file=$(echo "$pths" | tr -d '"'); \
@@ -59,7 +59,7 @@ ENV PATH="/usr/local/lib/R/site-library/littler/examples:${PATH}"
 RUN mkdir -p /outputs
 RUN mkdir -p /synthpop
 # Change working directory to the package directory
-WORKDIR /IMPACTncd_Japan/Rpackage/IMPACTncd_Japan_model_pkg
+WORKDIR /IMPACTncd_Germany/Rpackage/IMPACTncd_Ger_model_pkg
 # Generate documentation using Roxygen 
 RUN roxy.r 
 # Build the package
@@ -70,7 +70,7 @@ RUN PACKAGE=$(grep "^Package:" DESCRIPTION | awk '{print $2}') && \
     TARBALL="${PACKAGE}_${VERSION}.tar.gz" && \
     install2.r "$TARBALL"
 
-WORKDIR /IMPACTncd_Japan/
+WORKDIR /IMPACTncd_Germany/
 
 CMD ["/bin/bash"]
 

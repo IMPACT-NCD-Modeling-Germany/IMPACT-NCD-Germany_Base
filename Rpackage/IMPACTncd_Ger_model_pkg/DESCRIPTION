@@ -2,8 +2,10 @@ Package: IMPACTncdGer
 Type: Package
 Title: Utility Functions for IMPACTncdGer Model
 Version: 0.0.2
-Date: 2023-08-30
-Author: Chris Kypridemos, Karl M.F. Emmert-Fees
+Date: 2025-07-21
+Authors@R: 
+    person("Chris", "Kypridemos", , "christodoulosk@gmail.com", role = c("aut", "cre"),
+           comment = c(ORCID = "0000-0002-0746-9229"))
 Maintainer: Karl M.F. Emmert-Fees <karlfees@gmail.com>
 Description: This package contains the functions that are necessary for IMPACTncdGer model, adapted from the IMPACTncdEngl model.
 License: GPL (>=3)
@@ -22,14 +24,18 @@ Imports: Rcpp (>= 1.0.2),
          digest,
          R6,
          yaml,
-         shinythemes,
          foreach,
          BH,
-         igraph
+         igraph,
+	 parallelly,
+	 parallel
 Suggests: roxygen2
 LinkingTo: Rcpp, 
            dqrng,
            sitmo,
            BH,
-           data.table
+           data.table,
+	   CKutils
 RoxygenNote: 7.3.2
+SystemRequirements: C++17
+VignetteBuilder: knitr
