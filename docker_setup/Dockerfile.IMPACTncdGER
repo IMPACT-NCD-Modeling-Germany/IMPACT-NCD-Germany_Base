@@ -55,9 +55,11 @@ RUN cd /home/rstudio/IMPACTncd_Germany && \
 RUN chown -R rstudio:rstudio /home/rstudio/IMPACTncd_Germany
 RUN chmod -R 777 /home/rstudio/IMPACTncd_Germany
 
-# 10-git-identity will auto-run at container start (s6 cont-init.d hook)
+# git-identity.sh will auto-run at container start (s6 cont-init.d hook)
 COPY /docker_setup/git-identity.sh /etc/cont-init.d/git-identity
-RUN chmod +x /etc/cont-init.d/git-identity
+# normalize line endings + make executable
+RUN sed -i 's/\r$//' /etc/cont-init.d/git-identity \
+ && chmod +x /etc/cont-init.d/git-identity
 
 # Configure git to use SSH and behave like usual client
 RUN git config --system url."git@github.com:".insteadOf "https://github.com/" \
