@@ -53,3 +53,6 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+
+# Roxygen files
+*.Rd

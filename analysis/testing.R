@@ -1,5 +1,8 @@
-#testintg
+# Testing output syncing #
 
+library(data.table)
 
+n <- 100000
+dt <- data.table(runif(n), rnorm(n))
 
-#teting2
+fwrite(dt, "./outputs/testing_rsync.csv")
