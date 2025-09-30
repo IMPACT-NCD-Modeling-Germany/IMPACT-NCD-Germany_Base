@@ -51,12 +51,14 @@ RUN cd /home/rstudio/IMPACTncd_Germany && \
         done; \
     fi
 
-# Make IMPACTncd_Germany directory the working directory for Rstudio
-# Make sure the directory is owned by rstudio
+# Make sure the directory and all files are owned by the rstudio user
 RUN chown -R rstudio:rstudio /home/rstudio/IMPACTncd_Germany
-# Create a .Rprofile for the rstudio user that sets the working directory
-RUN echo 'setwd("/home/rstudio/IMPACTncd_Germany")' >> /home/rstudio/.Rprofile \
-    && chown rstudio:rstudio /home/rstudio/.Rprofile
+RUN chmod -R 777 /home/rstudio/IMPACTncd_Germany
+# Make sure github uses SSH instead of HTTPS for submodules
+# Make Git prefer SSH over HTTPS for GitHub
+RUN git config --system url."git@github.com:".insteadOf "https://github.com/"
+# Trust GitHub host key so first SSH doesn’t prompt
+RUN mkdir -p /etc/ssh && ssh-keyscan github.com >> /etc/ssh/ssh_known_hosts
 # Add littler tools to PATH
 ENV PATH="/usr/local/lib/R/site-library/littler/bin:${PATH}" 
 # Add littler examples to PATH
