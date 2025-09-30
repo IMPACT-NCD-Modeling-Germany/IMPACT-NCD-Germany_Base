@@ -22,14 +22,12 @@ COPY . /tmp/build_context/
 
 # Process the copied content only if using copy method
 RUN if [ "$SOURCE_METHOD" = "copy" ]; then \
-  echo "Using copy method - setting up from build context" && \
-  mkdir -p /home/rstudio/IMPACTncd_Germany && \
-  shopt -s dotglob && \
-  mv /tmp/build_context/* /home/rstudio/IMPACTncd_Germany/ && \
-  shopt -u dotglob && \
-  echo "Local files moved successfully"; \
-fi && \
-rm -rf /tmp/build_context
+      echo "Using copy method - setting up from build context" && \
+      mkdir -p /home/rstudio/IMPACTncd_Germany && \
+      cp -a /tmp/build_context/. /home/rstudio/IMPACTncd_Germany/ && \
+      echo "Local files moved successfully"; \
+    fi && \
+    rm -rf /tmp/build_context
 
 # Method 2: Clone from GitHub (when using git method)
 # This will be dynamically updated by GitHub Actions to clone the correct branch
