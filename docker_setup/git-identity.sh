@@ -64,4 +64,7 @@ if [[ $NEED_NAME -eq 1 || $NEED_MAIL -eq 1 ]]; then
   [[ $NEED_MAIL -eq 1 ]] && as_rstudio "git config --global user.email '${MAIL_TO_SET}'"
 fi
 
+as_rstudio "echo '[git-init] user.name:  ' \$(git config --global user.name)"
+as_rstudio "echo '[git-init] user.email: ' \$(git config --global user.email)"
+
 # Done. s6 will continue to start RStudio Server.

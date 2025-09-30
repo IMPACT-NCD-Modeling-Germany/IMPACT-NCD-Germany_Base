@@ -59,8 +59,11 @@ RUN chmod -R 777 /home/rstudio/IMPACTncd_Germany
 COPY /docker_setup/git-identity.sh /etc/cont-init.d/git-identity
 RUN chmod +x /etc/cont-init.d/git-identity
 
-# Make GitHub HTTPS→SSH rewrite global so GUI always prefers SSH
-RUN git config --system url."git@github.com:".insteadOf "https://github.com/"
+# Configure git to use SSH and behave like usual client
+RUN git config --system url."git@github.com:".insteadOf "https://github.com/" \
+    && git config --system pull.rebase true \
+    && git config --system rebase.autoStash true \
+    && git config --system pull.ff only
 
 # Add littler tools to PATH
 ENV PATH="/usr/local/lib/R/site-library/littler/bin:${PATH}"
