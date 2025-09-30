@@ -111,5 +111,6 @@ else
 fi
 
 # Execute the command as the specified user
-echo "Executing command as user $USER_ID:$GROUP_ID"
-exec gosu "$USER_ID:$GROUP_ID" "$@"
+#echo "Executing command as user $USER_ID:$GROUP_ID"
+#exec gosu "$USER_ID:$GROUP_ID" "$@"
+exec /init

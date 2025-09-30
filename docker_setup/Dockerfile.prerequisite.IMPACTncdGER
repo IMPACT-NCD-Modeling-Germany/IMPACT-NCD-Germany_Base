@@ -1,4 +1,4 @@
-FROM rocker/r-ver:4.5.1
+FROM rocker/rstudio:4.5.1
 
 LABEL maintainer="Karl Emmmert-Fees <karl.emmmert-fees@tum.de>"
 ARG DEBIAN_FRONTEND=noninteractive
@@ -51,6 +51,6 @@ COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
-CMD ["/bin/bash"]
+#CMD ["/init"]
 
 # docker run -it --name my_new_container chriskypri/impactncd-r-prerequisite /bin/bash
