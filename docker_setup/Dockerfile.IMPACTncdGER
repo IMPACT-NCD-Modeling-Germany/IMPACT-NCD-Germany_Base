@@ -54,24 +54,33 @@ RUN cd /home/rstudio/IMPACTncd_Germany && \
 # Make sure the directory and all files are owned by the rstudio user
 RUN chown -R rstudio:rstudio /home/rstudio/IMPACTncd_Germany
 RUN chmod -R 777 /home/rstudio/IMPACTncd_Germany
-# Make sure github uses SSH instead of HTTPS for submodules
-# Make Git prefer SSH over HTTPS for GitHub
+
+# 10-git-identity will auto-run at container start (s6 cont-init.d hook)
+COPY /docker_setup/git-identity.sh /etc/cont-init.d/git-identity
+RUN chmod +x /etc/cont-init.d/git-identity
+
+# Make GitHub HTTPS→SSH rewrite global so GUI always prefers SSH
 RUN git config --system url."git@github.com:".insteadOf "https://github.com/"
-# Trust GitHub host key so first SSH doesn’t prompt
-RUN mkdir -p /etc/ssh && ssh-keyscan github.com >> /etc/ssh/ssh_known_hosts
+
 # Add littler tools to PATH
-ENV PATH="/usr/local/lib/R/site-library/littler/bin:${PATH}" 
+ENV PATH="/usr/local/lib/R/site-library/littler/bin:${PATH}"
+
 # Add littler examples to PATH
-ENV PATH="/usr/local/lib/R/site-library/littler/examples:${PATH}" 
+ENV PATH="/usr/local/lib/R/site-library/littler/examples:${PATH}"
+
 # Create directories for outputs and synthpop/Not needed because we use the native folders from the repo
 #RUN mkdir -p /outputs
 #RUN mkdir -p /synthpop
+
 # Change working directory to the package directory
 WORKDIR /home/rstudio/IMPACTncd_Germany/Rpackage/IMPACTncd_Ger_model_pkg
+
 # Generate documentation using Roxygen 
 RUN roxy.r 
+
 # Build the package
 RUN build.r 
+
 # Dynamically construct the .tar.gz filename for the local R package from its DESCRIPTION file and install it 
 RUN PACKAGE=$(grep "^Package:" DESCRIPTION | awk '{print $2}') && \ 
     VERSION=$(grep "^Version:" DESCRIPTION | awk '{print $2}') && \ 
