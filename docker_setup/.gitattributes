@@ -1,0 +1,13 @@
+# Normalize line endings across platforms
+* text=auto eol=lf
+
+# Common explicit rules (optional but helpful)
+*.sh   text eol=lf
+*.R    text eol=lf
+*.Rmd  text eol=lf
+*.py   text eol=lf
+*.csv  text eol=lf
+*.tsv  text eol=lf
+*.md   text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf
