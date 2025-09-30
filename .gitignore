@@ -20,7 +20,12 @@
 
 # RStudio files
 .Rproj.user/
-/rstudio/
+.Rproj.user/**
+.Rproj.user/*/suspended-session
+.Rproj.user/*/pcs/*
+.Rproj.user/*/rmd-*-*
+.Rproj.user/*/sources/prop/*
+.Rproj.user/*/sources/s-*/s-*
 
 # produced vignettes
 vignettes/*.html
