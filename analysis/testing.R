@@ -9,3 +9,4 @@ fwrite(dt, "./outputs/testing_rsync.csv")
 
 
 ## Additional test analysis
+dt <- data.table(runif(n), rnorm(n), rgamma(n, 0.9))
