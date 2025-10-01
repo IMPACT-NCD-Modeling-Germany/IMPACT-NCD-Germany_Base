@@ -46,11 +46,4 @@ RUN installGithub.r "ChristK/CKutils@fb56c75b8cc3abc887d7d236ea92f0662c471962" #
 # RUN wget http://cran.r-project.org/src/contrib/Archive/data.table/data.table_1.16.4.tar.gz
 # RUN R CMD INSTALL data.table_1.16.4.tar.gz && rm data.table_1.16.4.tar.gz
 
-# Create a script to handle dynamic user creation for non-root execution
-COPY entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
-
-ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
-#CMD ["/init"]
-
 # docker run -it --name my_new_container chriskypri/impactncd-r-prerequisite /bin/bash

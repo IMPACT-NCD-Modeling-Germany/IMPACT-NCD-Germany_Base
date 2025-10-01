@@ -5,6 +5,7 @@ LABEL maintainer="Karl Emmmert-Fees <karl.emmmert-fees@tum.de>"
 
 # Build argument to control source method: "copy" or "git"
 ARG SOURCE_METHOD=copy
+ARG REPO_NAME=IMPACT-NCD-Germany_Base
 
 # Method 1: Copy from build context (only when using copy method)
 # Build context should be the parent directory that contains docker_setup: docker build -f Dockerfile.IMPACTncdGER -t impactncd_germany ..
@@ -20,12 +21,24 @@ RUN if [ "$SOURCE_METHOD" = "copy" ]; then \
 # The docker_build_push.sh script needs to be updated to use ".." as build context for copy method
 COPY . /tmp/build_context/
 
+# Set the repository name as an environment variable for subsequent steps
+RUN if [ "$SOURCE_METHOD" = "copy" ]; then \
+      DETECTED_REPO_NAME=$(basename "$(dirname "$(pwd)")") && \
+      FINAL_REPO_NAME="${REPO_NAME:-$DETECTED_REPO_NAME}"; \
+    else \
+      FINAL_REPO_NAME="${REPO_NAME:-IMPACT-NCD-Germany_Base}"; \
+    fi && \
+    echo "CONTAINER_REPO_NAME=$FINAL_REPO_NAME" >> /etc/environment && \
+    echo "Repository name set to: $FINAL_REPO_NAME"
+
 # Process the copied content only if using copy method
 RUN if [ "$SOURCE_METHOD" = "copy" ]; then \
       echo "Using copy method - setting up from build context" && \
-      mkdir -p /home/rstudio/IMPACTncd_Germany && \
-      cp -a /tmp/build_context/. /home/rstudio/IMPACTncd_Germany/ && \
-      echo "Local files moved successfully"; \
+      . /etc/environment && \
+      echo "Repository name: $CONTAINER_REPO_NAME" && \
+      mkdir -p /home/rstudio/$CONTAINER_REPO_NAME && \
+      cp -a /tmp/build_context/. /home/rstudio/$CONTAINER_REPO_NAME/ && \
+      echo "Local files moved successfully to /home/rstudio/$CONTAINER_REPO_NAME"; \
     fi && \
     rm -rf /tmp/build_context
 
@@ -33,12 +46,15 @@ RUN if [ "$SOURCE_METHOD" = "copy" ]; then \
 # This will be dynamically updated by GitHub Actions to clone the correct branch
 RUN if [ "$SOURCE_METHOD" = "git" ]; then \
         echo "Using git method - cloning from GitHub" && \
-        git clone https://github.com/IMPACT-NCD-Modeling-Germany/IMPACT-NCD-Germany_Base.git /home/rstudio/IMPACTncd_Germany && \
-        echo "Repository cloned successfully"; \
+        . /etc/environment && \
+        echo "Repository name: $CONTAINER_REPO_NAME" && \
+        git clone https://github.com/IMPACT-NCD-Modeling-Germany/IMPACT-NCD-Germany_Base.git /home/rstudio/$CONTAINER_REPO_NAME && \
+        echo "Repository cloned successfully to /home/rstudio/$CONTAINER_REPO_NAME"; \
     fi
 
 # Reconstruct large files from their chunks that are stored on GitHub
-RUN cd /home/rstudio/IMPACTncd_Germany && \
+RUN . /etc/environment && \
+    cd /home/rstudio/$CONTAINER_REPO_NAME && \
     if [ -f "./simulation/large_files_indx.csv" ]; then \
         tail -n +2 "./simulation/large_files_indx.csv" | while IFS=, read -r pths rest; do \
             file=$(echo "$pths" | tr -d '"'); \
@@ -52,8 +68,8 @@ RUN cd /home/rstudio/IMPACTncd_Germany && \
     fi
 
 # Make sure the directory and all files are owned by the rstudio user
-RUN chown -R rstudio:rstudio /home/rstudio/IMPACTncd_Germany
-RUN chmod -R 777 /home/rstudio/IMPACTncd_Germany
+RUN . /etc/environment && chown -R rstudio:rstudio /home/rstudio/$CONTAINER_REPO_NAME
+RUN . /etc/environment && chmod -R 777 /home/rstudio/$CONTAINER_REPO_NAME
 
 # git-identity.sh will auto-run at container start (s6 cont-init.d hook)
 COPY /docker_setup/git-identity.sh /etc/cont-init.d/git-identity
@@ -77,22 +93,23 @@ ENV PATH="/usr/local/lib/R/site-library/littler/examples:${PATH}"
 #RUN mkdir -p /outputs
 #RUN mkdir -p /synthpop
 
-# Change working directory to the package directory
-WORKDIR /home/rstudio/IMPACTncd_Germany/Rpackage/IMPACTncd_Ger_model_pkg
-
-# Generate documentation using Roxygen 
-RUN roxy.r 
-
-# Build the package
-RUN build.r 
-
-# Dynamically construct the .tar.gz filename for the local R package from its DESCRIPTION file and install it 
-RUN PACKAGE=$(grep "^Package:" DESCRIPTION | awk '{print $2}') && \ 
-    VERSION=$(grep "^Version:" DESCRIPTION | awk '{print $2}') && \ 
+# Build R package (need to use a RUN command since WORKDIR can't use env vars)
+RUN . /etc/environment && \
+    cd /home/rstudio/$CONTAINER_REPO_NAME/Rpackage/IMPACTncd_Ger_model_pkg && \
+    roxy.r && \
+    build.r && \
+    PACKAGE=$(grep "^Package:" DESCRIPTION | awk '{print $2}') && \
+    VERSION=$(grep "^Version:" DESCRIPTION | awk '{print $2}') && \
     TARBALL="${PACKAGE}_${VERSION}.tar.gz" && \
     install2.r "$TARBALL"
 
-WORKDIR /home/rstudio/IMPACTncd_Germany/
+# Note: Final working directory is set by entrypoint.sh using CONTAINER_REPO_NAME
+
+# Create a script to handle syncing of files during container start
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 
 #CMD ["/init"]
 
