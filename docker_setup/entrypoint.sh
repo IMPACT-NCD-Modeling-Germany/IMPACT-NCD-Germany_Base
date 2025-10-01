@@ -234,28 +234,37 @@ setup_bidirectional_sync() {
                 
                 # Only sync if there are actual changes (avoid unnecessary I/O)
                 # Exclude RStudio temp files and Git index from change detection
-                CHANGED_FILES=$(find "$CONTAINER_REPO_PATH" -newer /tmp/last_sync_back 2>/dev/null | \
-                    grep -v '\.Rproj\.user/' | \
-                    grep -v '\.git/index' | \
-                    grep -v '\.git/logs/' | \
-                    grep -v '\.rstudio/')
+                ALL_CHANGED=$(find "$CONTAINER_REPO_PATH" -newer /tmp/last_sync_back 2>/dev/null)
+                CHANGED_FILES=$(echo "$ALL_CHANGED" | \
+                    grep -v '/\.Rproj\.user/' | \
+                    grep -v '/\.git/index' | \
+                    grep -v '/\.git/logs/' | \
+                    grep -v '/\.rstudio/')
+                
+                FILTERED_COUNT=$(echo "$ALL_CHANGED" | wc -l)
+                FINAL_COUNT=$(echo "$CHANGED_FILES" | grep -v '^$' | wc -l)
+                log "DEBUG: Found $FILTERED_COUNT total changes, filtered to $FINAL_COUNT relevant changes"
                 if [[ -n "$CHANGED_FILES" ]]; then
                     log "Changes detected, syncing back to host..."
-                    log "DEBUG: Number of changed files: $(echo "$CHANGED_FILES" | wc -l)"
-                    echo "$CHANGED_FILES" | head -5 | while read file; do
+                    log "DEBUG: Number of changed files: $(echo "$CHANGED_FILES" | grep -v '^$' | wc -l)"
+                    echo "$CHANGED_FILES" | grep -v '^$' | head -5 | while read file; do
                         log "DEBUG: Changed: $file"
                     done
-                    if [[ $(echo "$CHANGED_FILES" | wc -l) -gt 5 ]]; then
-                        log "DEBUG: ... and $(($(echo "$CHANGED_FILES" | wc -l) - 5)) more files"
+                    if [[ $(echo "$CHANGED_FILES" | grep -v '^$' | wc -l) -gt 5 ]]; then
+                        log "DEBUG: ... and $(($(echo "$CHANGED_FILES" | grep -v '^$' | wc -l) - 5)) more files"
                     fi
                     
                     # Create list of changed files for rsync (convert to relative paths)
-                    echo "$CHANGED_FILES" | while read file; do
+                    echo "$CHANGED_FILES" | grep -v '^$' | while read file; do
                         # Convert absolute path to relative path
-                        if [[ "$file" == "$CONTAINER_REPO_PATH"/* ]]; then
-                            echo "${file#$CONTAINER_REPO_PATH/}"
+                        if [[ -n "$file" && "$file" == "$CONTAINER_REPO_PATH"/* ]]; then
+                            REL_PATH="${file#$CONTAINER_REPO_PATH/}"
+                            # Only include if it's not just the root directory
+                            if [[ -n "$REL_PATH" && "$REL_PATH" != "$CONTAINER_REPO_PATH" ]]; then
+                                echo "$REL_PATH"
+                            fi
                         fi
-                    done | grep -v '^$' > /tmp/changed_files_list
+                    done > /tmp/changed_files_list
                     
                     # Only sync the changed files
                     if [[ -s /tmp/changed_files_list ]]; then
