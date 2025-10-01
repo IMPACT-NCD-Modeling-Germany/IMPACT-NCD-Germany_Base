@@ -55,12 +55,17 @@ sync_repository() {
         log "Syncing from $REPO_SYNC_PATH to $CONTAINER_REPO_PATH"
         
         # Use rsync to sync files, excluding certain directories/files
-        # IMPORTANT: Exclude Rpackage/ completely except R source code subfolder
+        # Preserve compiled R package files but sync source code
         rsync -av \
             --delete \
             --exclude='docker_setup/' \
-            --exclude='Rpackage/' \
-            --include='Rpackage/*/R/***' \
+            --exclude='Rpackage/*/DESCRIPTION' \
+            --exclude='Rpackage/*/NAMESPACE' \
+            --exclude='Rpackage/*/man/' \
+            --exclude='Rpackage/*/*.tar.gz' \
+            --exclude='Rpackage/*/src/*.o' \
+            --exclude='Rpackage/*/src/*.so' \
+            --exclude='Rpackage/*/src/*.dll' \
             --exclude='*.log' \
             --exclude='.Rhistory' \
             --exclude='.RData' \
@@ -70,18 +75,6 @@ sync_repository() {
             --exclude='*.tmp' \
             --exclude='*.cache' \
             "$REPO_SYNC_PATH/" "$CONTAINER_REPO_PATH/"
-        
-        # Separately sync only the R source code folders in Rpackage
-        if [[ -d "$REPO_SYNC_PATH/Rpackage" ]]; then
-            log "Syncing Rpackage R source folders..."
-            for pkg_dir in "$REPO_SYNC_PATH/Rpackage/"*/; do
-                if [[ -d "${pkg_dir}R" ]]; then
-                    pkg_name=$(basename "$pkg_dir")
-                    mkdir -p "$CONTAINER_REPO_PATH/Rpackage/$pkg_name"
-                    rsync -av "${pkg_dir}R/" "$CONTAINER_REPO_PATH/Rpackage/$pkg_name/R/"
-                fi
-            done
-        fi
         
         # Ensure correct ownership
         chown -R rstudio:rstudio "$CONTAINER_REPO_PATH"
@@ -177,11 +170,29 @@ setup_bidirectional_sync() {
         # Create sync back function
         sync_back_to_host() {
             log "Syncing changes back to host..."
+            log "DEBUG: Container path: $CONTAINER_REPO_PATH"
+            log "DEBUG: Host path: $REPO_SYNC_PATH"
+            log "DEBUG: Checking if paths exist..."
+            ls -la "$CONTAINER_REPO_PATH" >/dev/null 2>&1 && log "DEBUG: Container path exists" || log "DEBUG: Container path MISSING"
+            ls -la "$REPO_SYNC_PATH" >/dev/null 2>&1 && log "DEBUG: Host path exists" || log "DEBUG: Host path MISSING"
+            
+            # Show what we're about to sync
+            log "DEBUG: Files in container analysis folder:"
+            ls -la "$CONTAINER_REPO_PATH/analysis/" 2>/dev/null | head -5 || log "DEBUG: No analysis folder found"
+            
+            # Main sync back - same exclusions as forward sync but preserve compiled R package
+            log "DEBUG: Running incremental rsync from $CONTAINER_REPO_PATH/ to $REPO_SYNC_PATH/"
             rsync -av \
-                --delete \
+                --update \
+                --inplace \
                 --exclude='docker_setup/' \
-                --exclude='Rpackage/' \
-                --include='Rpackage/*/R/***' \
+                --exclude='Rpackage/*/DESCRIPTION' \
+                --exclude='Rpackage/*/NAMESPACE' \
+                --exclude='Rpackage/*/man/' \
+                --exclude='Rpackage/*/*.tar.gz' \
+                --exclude='Rpackage/*/src/*.o' \
+                --exclude='Rpackage/*/src/*.so' \
+                --exclude='Rpackage/*/src/*.dll' \
                 --exclude='*.log' \
                 --exclude='.Rhistory' \
                 --exclude='.RData' \
@@ -193,34 +204,75 @@ setup_bidirectional_sync() {
                 --exclude='.rstudio/' \
                 "$CONTAINER_REPO_PATH/" "$REPO_SYNC_PATH/"
             
-            # Separately sync only the R source code folders back to host
-            if [[ -d "$CONTAINER_REPO_PATH/Rpackage" ]]; then
-                for pkg_dir in "$CONTAINER_REPO_PATH/Rpackage/"*/; do
-                    if [[ -d "${pkg_dir}R" ]]; then
-                        pkg_name=$(basename "$pkg_dir")
-                        mkdir -p "$REPO_SYNC_PATH/Rpackage/$pkg_name"
-                        rsync -av "${pkg_dir}R/" "$REPO_SYNC_PATH/Rpackage/$pkg_name/R/"
-                    fi
-                done
+            RSYNC_EXIT_CODE=$?
+            log "DEBUG: rsync exit code: $RSYNC_EXIT_CODE"
+            
+            if [ $RSYNC_EXIT_CODE -ne 0 ]; then
+                log "ERROR: Main rsync back failed with exit code $RSYNC_EXIT_CODE"
+            else
+                log "DEBUG: rsync completed successfully"
             fi
+            
+            log "DEBUG: Sync back completed"
         }
         
         # Setup signal handler for graceful shutdown
-        trap 'log "Container stopping, syncing back to host..."; sync_back_to_host; exit 0' SIGTERM SIGINT
+        trap 'log "Container stopping, syncing back to host..."; sync_back_to_host; log "Final sync completed"; exit 0' SIGTERM SIGINT
         
         # Start background sync process
         (
             # Wait a bit for container to fully start
             sleep 30
+            log "Background sync process started"
             
             while true; do
                 # Sync back every 10 seconds
                 sleep 10
                 
                 # Only sync if there are actual changes (avoid unnecessary I/O)
-                if [[ -n "$(find "$CONTAINER_REPO_PATH" -newer /tmp/last_sync_back 2>/dev/null)" ]]; then
-                    sync_back_to_host
+                CHANGED_FILES=$(find "$CONTAINER_REPO_PATH" -newer /tmp/last_sync_back 2>/dev/null)
+                if [[ -n "$CHANGED_FILES" ]]; then
+                    log "Changes detected, syncing back to host..."
+                    log "DEBUG: Number of changed files: $(echo "$CHANGED_FILES" | wc -l)"
+                    echo "$CHANGED_FILES" | head -5 | while read file; do
+                        log "DEBUG: Changed: $file"
+                    done
+                    if [[ $(echo "$CHANGED_FILES" | wc -l) -gt 5 ]]; then
+                        log "DEBUG: ... and $(($(echo "$CHANGED_FILES" | wc -l) - 5)) more files"
+                    fi
+                    
+                    # Create list of changed files for rsync
+                    echo "$CHANGED_FILES" | sed "s|$CONTAINER_REPO_PATH/||" > /tmp/changed_files_list
+                    
+                    # Only sync the changed files
+                    if [[ -s /tmp/changed_files_list ]]; then
+                        rsync -av \
+                            --files-from=/tmp/changed_files_list \
+                            --exclude='docker_setup/' \
+                            --exclude='Rpackage/*/DESCRIPTION' \
+                            --exclude='Rpackage/*/NAMESPACE' \
+                            --exclude='Rpackage/*/man/' \
+                            --exclude='Rpackage/*/*.tar.gz' \
+                            --exclude='Rpackage/*/src/*.o' \
+                            --exclude='Rpackage/*/src/*.so' \
+                            --exclude='Rpackage/*/src/*.dll' \
+                            --exclude='*.log' \
+                            --exclude='.Rhistory' \
+                            --exclude='.RData' \
+                            --exclude='outputs/' \
+                            --exclude='inputs/synthpop/' \
+                            --exclude='.vscode/' \
+                            --exclude='*.tmp' \
+                            --exclude='*.cache' \
+                            --exclude='.rstudio/' \
+                            "$CONTAINER_REPO_PATH/" "$REPO_SYNC_PATH/"
+                        
+                        log "DEBUG: Synced $(cat /tmp/changed_files_list | wc -l) changed files"
+                    fi
+                    
                     touch /tmp/last_sync_back
+                else
+                    log "DEBUG: No changes detected since last sync ($(date))"
                 fi
             done
         ) &
@@ -230,7 +282,7 @@ setup_bidirectional_sync() {
         echo $SYNC_BACK_PID > /tmp/sync_back.pid
         
         log "Bidirectional sync started (PID: $SYNC_BACK_PID)"
-        log "Changes in container will sync back to host every 2 minutes"
+        log "Changes in container will sync back to host every 10 seconds"
     fi
 }
 
