@@ -236,10 +236,10 @@ setup_bidirectional_sync() {
                 # Exclude RStudio temp files and Git index from change detection
                 ALL_CHANGED=$(find "$CONTAINER_REPO_PATH" -newer /tmp/last_sync_back 2>/dev/null)
                 CHANGED_FILES=$(echo "$ALL_CHANGED" | \
-                    grep -v '/\.Rproj\.user/' | \
-                    grep -v '/\.git/index' | \
-                    grep -v '/\.git/logs/' | \
-                    grep -v '/\.rstudio/')
+                    grep -v '\.Rproj\.user' | \
+                    grep -v '\.rstudio' | \
+                    grep -v '\.git/index' | \
+                    grep -v '\.git/logs')
                 
                 FILTERED_COUNT=$(echo "$ALL_CHANGED" | wc -l)
                 FINAL_COUNT=$(echo "$CHANGED_FILES" | grep -v '^$' | wc -l)
