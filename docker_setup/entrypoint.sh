@@ -54,9 +54,6 @@ sync_repository() {
     if [[ "$REPO_SYNC_PATH" != "$CONTAINER_REPO_PATH" ]]; then
         log "Syncing from $REPO_SYNC_PATH to $CONTAINER_REPO_PATH"
         
-        # Ensure container repository directory exists
-        #mkdir -p "$CONTAINER_REPO_PATH"
-        
         # Use rsync to sync files, excluding certain directories/files
         rsync -av \
             --delete \
