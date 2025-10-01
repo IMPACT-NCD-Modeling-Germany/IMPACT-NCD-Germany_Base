@@ -230,7 +230,7 @@ setup_bidirectional_sync() {
             
             while true; do
                 # Sync back every 10 seconds
-                sleep 10
+                sleep 3
                 
                 # Only sync if there are actual changes (avoid unnecessary I/O)
                 # Exclude RStudio temp files and Git index from change detection
@@ -307,7 +307,7 @@ setup_bidirectional_sync() {
         echo $SYNC_BACK_PID > /tmp/sync_back.pid
         
         log "Bidirectional sync started (PID: $SYNC_BACK_PID)"
-        log "Changes in container will sync back to host every 10 seconds"
+        log "Changes in container will sync back to host every 3 seconds"
     fi
 }
 
