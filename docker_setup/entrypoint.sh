@@ -156,6 +156,65 @@ EOF
     chown -R rstudio:rstudio /home/rstudio/.rstudio
 fi
 
+# Setup bidirectional sync if sync is enabled and host repo is mounted
+setup_bidirectional_sync() {
+    if [[ "$SYNC_ENABLED" == "true" && -d "$REPO_SYNC_PATH" && "$REPO_SYNC_PATH" != "$CONTAINER_REPO_PATH" ]]; then
+        log "Setting up bidirectional sync..."
+        
+        # Create sync back function
+        sync_back_to_host() {
+            log "Syncing changes back to host..."
+            rsync -av \
+                --delete \
+                --exclude='docker_setup/' \
+                --exclude='Rpackage/' \
+                --exclude='*.log' \
+                --exclude='.Rhistory' \
+                --exclude='.RData' \
+                --exclude='outputs/' \
+                --exclude='inputs/synthpop/' \
+                --exclude='.vscode/' \
+                --exclude='*.tmp' \
+                --exclude='*.cache' \
+                --exclude='.rstudio/' \
+                "$CONTAINER_REPO_PATH/" "$REPO_SYNC_PATH/"
+        }
+        
+        # Setup signal handler for graceful shutdown
+        trap 'log "Container stopping, syncing back to host..."; sync_back_to_host; exit 0' SIGTERM SIGINT
+        
+        # Start background sync process
+        (
+            # Wait a bit for container to fully start
+            sleep 30
+            
+            while true; do
+                # Sync back every 2 minutes
+                sleep 120
+                
+                # Only sync if there are actual changes (avoid unnecessary I/O)
+                if [[ -n "$(find "$CONTAINER_REPO_PATH" -newer /tmp/last_sync_back 2>/dev/null)" ]]; then
+                    sync_back_to_host
+                    touch /tmp/last_sync_back
+                fi
+            done
+        ) &
+        
+        # Store background process PID for cleanup
+        SYNC_BACK_PID=$!
+        echo $SYNC_BACK_PID > /tmp/sync_back.pid
+        
+        log "Bidirectional sync started (PID: $SYNC_BACK_PID)"
+        log "Changes in container will sync back to host every 2 minutes"
+    fi
+}
+
+# Initialize timestamp for change detection
+touch /tmp/last_sync_back
+
+# Setup bidirectional sync
+setup_bidirectional_sync
+
 log "Starting original entrypoint..."
 
 # Execute the original RStudio entrypoint
