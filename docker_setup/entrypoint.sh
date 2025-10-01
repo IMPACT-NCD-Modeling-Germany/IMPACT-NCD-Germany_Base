@@ -55,9 +55,11 @@ sync_repository() {
         log "Syncing from $REPO_SYNC_PATH to $CONTAINER_REPO_PATH"
         
         # Use rsync to sync files, excluding certain directories/files
+        # IMPORTANT: Exclude Rpackage/ completely to preserve Docker-compiled R package
         rsync -av \
             --delete \
             --exclude='docker_setup/' \
+            --exclude='Rpackage/' \
             --exclude='*.log' \
             --exclude='.Rhistory' \
             --exclude='.RData' \
@@ -92,6 +94,67 @@ fi
 cd "$CONTAINER_REPO_PATH" || {
     log "Warning: Could not change to $CONTAINER_REPO_PATH"
 }
+
+# Configure RStudio to automatically open the R project
+log "Configuring RStudio to load R project automatically..."
+
+# Find the .Rproj file in the repository
+RPROJ_FILE=$(find "$CONTAINER_REPO_PATH" -maxdepth 1 -name "*.Rproj" | head -1)
+
+if [[ -n "$RPROJ_FILE" ]]; then
+    RPROJ_NAME=$(basename "$RPROJ_FILE")
+    log "Found R project file: $RPROJ_NAME"
+    
+    # Ensure rstudio user directories exist
+    mkdir -p /home/rstudio/.rstudio/monitored/user-settings
+    mkdir -p /home/rstudio/.config/rstudio
+    
+    # Set RStudio user preferences to open the project
+    cat > /home/rstudio/.rstudio/monitored/user-settings/user-settings << EOF
+{
+    "initial_working_directory": "$CONTAINER_REPO_PATH",
+    "default_project_location": "$CONTAINER_REPO_PATH",
+    "restore_last_project": true,
+    "restore_project_required": true
+}
+EOF
+
+    # Create RStudio desktop file to automatically open project
+    cat > /home/rstudio/.config/rstudio/rstudio-prefs.json << EOF
+{
+    "initial_working_directory": "$CONTAINER_REPO_PATH",
+    "default_project_location": "$CONTAINER_REPO_PATH",
+    "restore_last_project": true
+}
+EOF
+
+    # Set the project as the last opened project
+    mkdir -p /home/rstudio/.rstudio/projects_settings
+    echo "$RPROJ_FILE" > /home/rstudio/.rstudio/projects_settings/last-project-path
+    
+    # Create project state file
+    cat > /home/rstudio/.rstudio/projects_settings/project-settings << EOF
+{
+    "project_path": "$RPROJ_FILE"
+}
+EOF
+
+    # Set proper ownership
+    chown -R rstudio:rstudio /home/rstudio/.rstudio /home/rstudio/.config
+    
+    log "RStudio configured to open project: $RPROJ_NAME in $CONTAINER_REPO_PATH"
+else
+    log "No .Rproj file found in $CONTAINER_REPO_PATH - RStudio will start in repository directory"
+    
+    # At minimum, set the working directory
+    mkdir -p /home/rstudio/.rstudio/monitored/user-settings
+    cat > /home/rstudio/.rstudio/monitored/user-settings/user-settings << EOF
+{
+    "initial_working_directory": "$CONTAINER_REPO_PATH"
+}
+EOF
+    chown -R rstudio:rstudio /home/rstudio/.rstudio
+fi
 
 log "Starting original entrypoint..."
 
