@@ -93,20 +93,32 @@ ENV PATH="/usr/local/lib/R/site-library/littler/examples:${PATH}"
 #RUN mkdir -p /outputs
 #RUN mkdir -p /synthpop
 
-# Build R package (need to use a RUN command since WORKDIR can't use env vars)
+# Build R package - using original structure with dynamic repo name
+RUN . /etc/environment && \
+    cd /home/rstudio/$CONTAINER_REPO_NAME/Rpackage/IMPACTncd_Ger_model_pkg
+
+# Generate documentation using Roxygen 
 RUN . /etc/environment && \
     cd /home/rstudio/$CONTAINER_REPO_NAME/Rpackage/IMPACTncd_Ger_model_pkg && \
-    roxy.r && \
-    build.r && \
+    (roxy.r || R -e "library(roxygen2); roxygenise()") 
+
+# Build the package
+RUN . /etc/environment && \
+    cd /home/rstudio/$CONTAINER_REPO_NAME/Rpackage/IMPACTncd_Ger_model_pkg && \
+    (build.r || R CMD build .) 
+
+# Dynamically construct the .tar.gz filename for the local R package from its DESCRIPTION file and install it 
+RUN . /etc/environment && \
+    cd /home/rstudio/$CONTAINER_REPO_NAME/Rpackage/IMPACTncd_Ger_model_pkg && \
     PACKAGE=$(grep "^Package:" DESCRIPTION | awk '{print $2}') && \
     VERSION=$(grep "^Version:" DESCRIPTION | awk '{print $2}') && \
     TARBALL="${PACKAGE}_${VERSION}.tar.gz" && \
-    install2.r "$TARBALL"
+    (install2.r "$TARBALL" || R CMD INSTALL "$TARBALL")
 
 # Note: Final working directory is set by entrypoint.sh using CONTAINER_REPO_NAME
 
 # Create a script to handle syncing of files during container start
-COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY docker_setup/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
