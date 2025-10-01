@@ -55,11 +55,12 @@ sync_repository() {
         log "Syncing from $REPO_SYNC_PATH to $CONTAINER_REPO_PATH"
         
         # Use rsync to sync files, excluding certain directories/files
-        # IMPORTANT: Exclude Rpackage/ completely to preserve Docker-compiled R package
+        # IMPORTANT: Exclude Rpackage/ completely except R source code subfolder
         rsync -av \
             --delete \
             --exclude='docker_setup/' \
             --exclude='Rpackage/' \
+            --include='Rpackage/*/R/***' \
             --exclude='*.log' \
             --exclude='.Rhistory' \
             --exclude='.RData' \
@@ -69,6 +70,18 @@ sync_repository() {
             --exclude='*.tmp' \
             --exclude='*.cache' \
             "$REPO_SYNC_PATH/" "$CONTAINER_REPO_PATH/"
+        
+        # Separately sync only the R source code folders in Rpackage
+        if [[ -d "$REPO_SYNC_PATH/Rpackage" ]]; then
+            log "Syncing Rpackage R source folders..."
+            for pkg_dir in "$REPO_SYNC_PATH/Rpackage/"*/; do
+                if [[ -d "${pkg_dir}R" ]]; then
+                    pkg_name=$(basename "$pkg_dir")
+                    mkdir -p "$CONTAINER_REPO_PATH/Rpackage/$pkg_name"
+                    rsync -av "${pkg_dir}R/" "$CONTAINER_REPO_PATH/Rpackage/$pkg_name/R/"
+                fi
+            done
+        fi
         
         # Ensure correct ownership
         chown -R rstudio:rstudio "$CONTAINER_REPO_PATH"
@@ -168,6 +181,7 @@ setup_bidirectional_sync() {
                 --delete \
                 --exclude='docker_setup/' \
                 --exclude='Rpackage/' \
+                --include='Rpackage/*/R/***' \
                 --exclude='*.log' \
                 --exclude='.Rhistory' \
                 --exclude='.RData' \
@@ -178,6 +192,17 @@ setup_bidirectional_sync() {
                 --exclude='*.cache' \
                 --exclude='.rstudio/' \
                 "$CONTAINER_REPO_PATH/" "$REPO_SYNC_PATH/"
+            
+            # Separately sync only the R source code folders back to host
+            if [[ -d "$CONTAINER_REPO_PATH/Rpackage" ]]; then
+                for pkg_dir in "$CONTAINER_REPO_PATH/Rpackage/"*/; do
+                    if [[ -d "${pkg_dir}R" ]]; then
+                        pkg_name=$(basename "$pkg_dir")
+                        mkdir -p "$REPO_SYNC_PATH/Rpackage/$pkg_name"
+                        rsync -av "${pkg_dir}R/" "$REPO_SYNC_PATH/Rpackage/$pkg_name/R/"
+                    fi
+                done
+            fi
         }
         
         # Setup signal handler for graceful shutdown
@@ -189,8 +214,8 @@ setup_bidirectional_sync() {
             sleep 30
             
             while true; do
-                # Sync back every 2 minutes
-                sleep 120
+                # Sync back every 10 seconds
+                sleep 10
                 
                 # Only sync if there are actual changes (avoid unnecessary I/O)
                 if [[ -n "$(find "$CONTAINER_REPO_PATH" -newer /tmp/last_sync_back 2>/dev/null)" ]]; then
