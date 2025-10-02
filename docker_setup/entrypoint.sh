@@ -259,9 +259,21 @@ setup_bidirectional_sync() {
                         # Convert absolute path to relative path
                         if [[ -n "$file" && "$file" == "$CONTAINER_REPO_PATH"/* ]]; then
                             REL_PATH="${file#$CONTAINER_REPO_PATH/}"
-                            # Only include if it's not just the root directory
+                            # Only include if it's not just the root directory and not in excluded folders
                             if [[ -n "$REL_PATH" && "$REL_PATH" != "$CONTAINER_REPO_PATH" ]]; then
-                                echo "$REL_PATH"
+                                # Filter out excluded paths at file list level
+                                case "$REL_PATH" in
+                                    docker_setup/*|outputs/*|inputs/synthpop/*|.vscode/*|.Rproj.user/*|.rstudio/*|.git/index|.git/logs/*|*.log|.Rhistory|.RData|*.tmp|*.cache)
+                                        # Skip excluded files
+                                        ;;
+                                    Rpackage/*/DESCRIPTION|Rpackage/*/NAMESPACE|Rpackage/*/man/*|Rpackage/*/*.tar.gz|Rpackage/*/src/*.o|Rpackage/*/src/*.so|Rpackage/*/src/*.dll)
+                                        # Skip compiled R package files
+                                        ;;
+                                    *)
+                                        # Include all other files
+                                        echo "$REL_PATH"
+                                        ;;
+                                esac
                             fi
                         fi
                     done > /tmp/changed_files_list
