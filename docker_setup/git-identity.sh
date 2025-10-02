@@ -12,16 +12,78 @@ GIT_KEY_PATH="${GIT_KEY_PATH:-}"
 # Helper to run a command as rstudio
 as_rstudio() { su -s /bin/bash - "$RSTUDIO_USER" -c "$*"; }
 
+# Debug environment information
 log "start; USERID=${USERID:-<unset>} GROUPID=${GROUPID:-<unset>} GIT_KEY_PATH=${GIT_KEY_PATH:-<unset>}"
+log "environment: $(uname -a)"
+log "hostname: $(hostname)"
+log "network interfaces: $(ip addr show 2>/dev/null | grep 'inet ' | awk '{print $2}' | tr '\n' ' ' || echo 'unavailable')"
+log "mounted filesystems with /keys or ssh:"
+mount | grep -E "(keys|ssh)" || log "no key-related mounts found"
+log "available directories for SSH keys:"
+for dir in /keys /root/.ssh /home/rstudio/.ssh /tmp/ssh /var/ssh; do
+  if [[ -d "$dir" ]]; then
+    log "  $dir exists ($(ls -la "$dir" 2>/dev/null | wc -l) items)"
+  fi
+done
 
-# 1) If key path not provided, auto-detect a single key under /keys
-if [[ -z "${GIT_KEY_PATH}" && -d /keys ]]; then
-  mapfile -t CANDS < <(find /keys -maxdepth 1 -type f ! -name "*.pub")
-  if [[ "${#CANDS[@]}" -eq 1 ]]; then
-    GIT_KEY_PATH="${CANDS[0]}"
-    log "auto-detected key: ${GIT_KEY_PATH}"
-  else
-    log "no single key auto-detected in /keys (count=${#CANDS[@]})"
+# 1) If key path not provided, auto-detect a single key under /keys or common locations
+if [[ -z "${GIT_KEY_PATH}" ]]; then
+  log "searching for SSH keys in multiple locations..."
+  
+  # Search locations in order of preference
+  SEARCH_PATHS=(
+    "/keys"                    # Docker mount from Windows
+    "/root/.ssh"              # Common container location
+    "/home/rstudio/.ssh"      # User SSH directory
+    "/tmp/ssh"                # Alternative mount point
+    "/var/ssh"                # Another alternative
+  )
+  
+  for search_path in "${SEARCH_PATHS[@]}"; do
+    if [[ -d "$search_path" ]]; then
+      log "searching for keys in: $search_path"
+      mapfile -t CANDS < <(find "$search_path" -maxdepth 1 -type f ! -name "*.pub" ! -name "known_hosts*" ! -name "config" 2>/dev/null || true)
+      
+      # Filter out non-key files and check if files are readable
+      VALID_KEYS=()
+      for candidate in "${CANDS[@]}"; do
+        if [[ -f "$candidate" && -r "$candidate" ]]; then
+          # Check if it looks like a private key
+          if head -1 "$candidate" 2>/dev/null | grep -qE "(BEGIN (RSA|DSA|EC|OPENSSH) PRIVATE KEY|BEGIN PRIVATE KEY)" || \
+             [[ "$(basename "$candidate")" =~ ^id_(rsa|dsa|ecdsa|ed25519)(_.*)?$ ]]; then
+            VALID_KEYS+=("$candidate")
+            log "found potential SSH key: $candidate"
+          fi
+        fi
+      done
+      
+      if [[ "${#VALID_KEYS[@]}" -eq 1 ]]; then
+        GIT_KEY_PATH="${VALID_KEYS[0]}"
+        log "auto-detected key: ${GIT_KEY_PATH}"
+        break
+      elif [[ "${#VALID_KEYS[@]}" -gt 1 ]]; then
+        # Multiple keys found, prefer common naming patterns
+        for key in "${VALID_KEYS[@]}"; do
+          keyname=$(basename "$key")
+          if [[ "$keyname" =~ ^id_(ed25519|rsa)(_.*)?$ ]]; then
+            GIT_KEY_PATH="$key"
+            log "auto-selected preferred key: ${GIT_KEY_PATH}"
+            break
+          fi
+        done
+        
+        # If no preferred pattern, use the first one
+        if [[ -z "$GIT_KEY_PATH" ]]; then
+          GIT_KEY_PATH="${VALID_KEYS[0]}"
+          log "multiple keys found, using first: ${GIT_KEY_PATH}"
+        fi
+        break
+      fi
+    fi
+  done
+  
+  if [[ -z "$GIT_KEY_PATH" ]]; then
+    log "no SSH keys found in any search location"
   fi
 fi
 
@@ -84,16 +146,45 @@ if [[ $NEED_NAME -eq 1 || $NEED_MAIL -eq 1 ]]; then
   if [[ -n "${GIT_KEY_PATH}" && -r "${GIT_KEY_PATH}" ]]; then
     log "attempting to connect to GitHub with key: ${GIT_KEY_PATH}"
     
-    # SSH banner prints to stderr; do not fail on nonzero exit
-    # Use short timeouts suitable for container startup
+    # Test SSH connectivity with progressively more permissive settings
+    BANNER=""
+    
+    # Try 1: Strict settings (for local/direct connections)
+    log "trying strict SSH connection..."
     BANNER=$(ssh -T -i "${GIT_KEY_PATH}" \
       -o IdentitiesOnly=yes \
       -o UserKnownHostsFile="${GIT_KNOWN_HOSTS}" \
       -o StrictHostKeyChecking=yes \
-      -o ConnectTimeout=3 \
-      -o ServerAliveInterval=1 \
-      -o ServerAliveCountMax=2 \
+      -o ConnectTimeout=5 \
+      -o ServerAliveInterval=2 \
+      -o ServerAliveCountMax=3 \
       git@github.com 2>&1 || true)
+    
+    # Try 2: Relaxed host checking (for remote/proxied connections)
+    if [[ -z "$BANNER" ]] || [[ "$BANNER" =~ (Connection refused|No route to host|Network is unreachable|timeout) ]]; then
+      log "strict connection failed, trying with relaxed host checking..."
+      BANNER=$(ssh -T -i "${GIT_KEY_PATH}" \
+        -o IdentitiesOnly=yes \
+        -o StrictHostKeyChecking=no \
+        -o UserKnownHostsFile=/dev/null \
+        -o ConnectTimeout=10 \
+        -o ServerAliveInterval=3 \
+        -o ServerAliveCountMax=5 \
+        git@github.com 2>&1 || true)
+    fi
+    
+    # Try 3: Very permissive (for complex network setups)
+    if [[ -z "$BANNER" ]] || [[ "$BANNER" =~ (Connection refused|No route to host|Network is unreachable|timeout) ]]; then
+      log "relaxed connection failed, trying very permissive settings..."
+      BANNER=$(timeout 15 ssh -T -i "${GIT_KEY_PATH}" \
+        -o IdentitiesOnly=yes \
+        -o StrictHostKeyChecking=no \
+        -o UserKnownHostsFile=/dev/null \
+        -o ConnectTimeout=15 \
+        -o BatchMode=yes \
+        -o LogLevel=ERROR \
+        git@github.com 2>&1 || true)
+    fi
     
     log "SSH banner output: '$BANNER'"
     
