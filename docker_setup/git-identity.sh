@@ -42,18 +42,39 @@ if [[ -z "${GIT_KEY_PATH}" ]]; then
   for search_path in "${SEARCH_PATHS[@]}"; do
     if [[ -d "$search_path" ]]; then
       log "searching for keys in: $search_path"
+      log "directory contents: $(ls -la "$search_path" 2>/dev/null || echo 'cannot list')"
+      
       mapfile -t CANDS < <(find "$search_path" -maxdepth 1 -type f ! -name "*.pub" ! -name "known_hosts*" ! -name "config" 2>/dev/null || true)
+      
+      log "found ${#CANDS[@]} candidate files: ${CANDS[*]}"
       
       # Filter out non-key files and check if files are readable
       VALID_KEYS=()
       for candidate in "${CANDS[@]}"; do
         if [[ -f "$candidate" && -r "$candidate" ]]; then
-          # Check if it looks like a private key
-          if head -1 "$candidate" 2>/dev/null | grep -qE "(BEGIN (RSA|DSA|EC|OPENSSH) PRIVATE KEY|BEGIN PRIVATE KEY)" || \
-             [[ "$(basename "$candidate")" =~ ^id_(rsa|dsa|ecdsa|ed25519)(_.*)?$ ]]; then
-            VALID_KEYS+=("$candidate")
-            log "found potential SSH key: $candidate"
+          # Debug: show what we're checking
+          log "checking candidate: $candidate"
+          
+          # Check if it looks like a private key by content or name
+          KEY_HEADER=""
+          if [[ -r "$candidate" ]]; then
+            KEY_HEADER=$(head -1 "$candidate" 2>/dev/null || true)
           fi
+          
+          log "key header: '$KEY_HEADER'"
+          
+          # Check for SSH key content or naming patterns
+          # Specifically look for id_ed25519_username pattern
+          if [[ "$KEY_HEADER" =~ (BEGIN (RSA|DSA|EC|OPENSSH) PRIVATE KEY|BEGIN PRIVATE KEY) ]] || \
+             [[ "$(basename "$candidate")" =~ ^id_ed25519_[A-Za-z0-9._-]+$ ]] || \
+             [[ "$candidate" =~ /id_ed25519_[A-Za-z0-9._-]+$ ]]; then
+            VALID_KEYS+=("$candidate")
+            log "found valid SSH key: $candidate"
+          else
+            log "rejected candidate (not a recognized SSH key pattern): $candidate"
+          fi
+        else
+          log "candidate not readable or not a file: $candidate"
         fi
       done
       
@@ -62,15 +83,27 @@ if [[ -z "${GIT_KEY_PATH}" ]]; then
         log "auto-detected key: ${GIT_KEY_PATH}"
         break
       elif [[ "${#VALID_KEYS[@]}" -gt 1 ]]; then
-        # Multiple keys found, prefer common naming patterns
+        # Multiple keys found, prefer id_ed25519_username pattern
         for key in "${VALID_KEYS[@]}"; do
           keyname=$(basename "$key")
-          if [[ "$keyname" =~ ^id_(ed25519|rsa)(_.*)?$ ]]; then
+          if [[ "$keyname" =~ ^id_ed25519_[A-Za-z0-9._-]+$ ]]; then
             GIT_KEY_PATH="$key"
-            log "auto-selected preferred key: ${GIT_KEY_PATH}"
+            log "auto-selected preferred ed25519 key: ${GIT_KEY_PATH}"
             break
           fi
         done
+        
+        # If no ed25519 key, fall back to other patterns
+        if [[ -z "$GIT_KEY_PATH" ]]; then
+          for key in "${VALID_KEYS[@]}"; do
+            keyname=$(basename "$key")
+            if [[ "$keyname" =~ ^id_(rsa|dsa|ecdsa)(_.*)?$ ]]; then
+              GIT_KEY_PATH="$key"
+              log "auto-selected fallback key: ${GIT_KEY_PATH}"
+              break
+            fi
+          done
+        fi
         
         # If no preferred pattern, use the first one
         if [[ -z "$GIT_KEY_PATH" ]]; then
@@ -121,12 +154,33 @@ if [[ -n "${GIT_KEY_PATH}" && -f "${GIT_KEY_PATH}" ]]; then
   fi
 fi
 
-# 2) Ensure GitHub host key is present (if not mounted)
-if ! grep -qsE 'github\.com' "$GIT_KNOWN_HOSTS"; then
-  log "adding github.com to $GIT_KNOWN_HOSTS"
-  mkdir -p "$(dirname "$GIT_KNOWN_HOSTS")"
-  ssh-keyscan github.com >> "$GIT_KNOWN_HOSTS" 2>/dev/null || true
+# 2) Ensure GitHub host key is present (handle both file and directory cases)
+KNOWN_HOSTS_FILE="$GIT_KNOWN_HOSTS"
+
+# If GIT_KNOWN_HOSTS is a directory, use a file inside it
+if [[ -d "$GIT_KNOWN_HOSTS" ]]; then
+  KNOWN_HOSTS_FILE="$GIT_KNOWN_HOSTS/ssh_known_hosts"
+  log "GIT_KNOWN_HOSTS is a directory, using file: $KNOWN_HOSTS_FILE"
 fi
+
+# Create the known_hosts file if it doesn't exist
+if [[ ! -f "$KNOWN_HOSTS_FILE" ]]; then
+  log "creating known_hosts file: $KNOWN_HOSTS_FILE"
+  mkdir -p "$(dirname "$KNOWN_HOSTS_FILE")"
+  touch "$KNOWN_HOSTS_FILE"
+fi
+
+# Check if GitHub key is already present
+if ! grep -qsE 'github\.com' "$KNOWN_HOSTS_FILE" 2>/dev/null; then
+  log "adding github.com to $KNOWN_HOSTS_FILE"
+  ssh-keyscan github.com >> "$KNOWN_HOSTS_FILE" 2>/dev/null || {
+    log "failed to add github.com host key, creating basic entry"
+    echo "github.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCj7ndNxQowgcQnjshcLrqPEiiphnt+VTTvDP6mHBL9j1aNUkY4Ue1gvwnGLVlOhGeYrnZaMgRK6+PKCUXaDbC7qtbW8gIkhL7aGCsOr/C56SJMy/BCZfxd1nWzAOxSDPgVsmerOBYfNqltV9/hWCqBywINIR+5dIg6JTJ72pcEpEjcYgXkE2YEFXV1JHnsKgbLWNlhScqb2UmyRkQyytRLtL+38TGxkxCflmO+5Z8HLUB0j8IXg7EPNT5o7pNvJgXjkLv/7sKxpwM6JWXkcEwzSY5vIJ8M6BHU+K5mZzRPEH4jm7QRVD9T/PD5VjBm8A3DfzNdOmXNO9WQGQdOUVJ8pY0pTXFDnxNWBRnYB6iTaEp2y8RzA0VQa8iJA" >> "$KNOWN_HOSTS_FILE" || true
+  }
+fi
+
+# Update GIT_KNOWN_HOSTS to point to the actual file
+GIT_KNOWN_HOSTS="$KNOWN_HOSTS_FILE"
 
 # 3) Make GUI (git) use the mounted key for all repos
 if [[ -n "${GIT_KEY_PATH}" && -r "${GIT_KEY_PATH}" ]]; then
