@@ -44,7 +44,25 @@ if [[ -z "${GIT_KEY_PATH}" ]]; then
       log "searching for keys in: $search_path"
       log "directory contents: $(ls -la "$search_path" 2>/dev/null || echo 'cannot list')"
       
+      # Look for files directly in the directory
       mapfile -t CANDS < <(find "$search_path" -maxdepth 1 -type f ! -name "*.pub" ! -name "known_hosts*" ! -name "config" 2>/dev/null || true)
+      
+      # Check for mounted SSH key files that appear as directories (Docker file mounts)
+      mapfile -t MOUNT_CANDS < <(find "$search_path" -maxdepth 1 -name "id_ed25519_*" 2>/dev/null || true)
+      for mount_cand in "${MOUNT_CANDS[@]}"; do
+        if [[ -e "$mount_cand" ]]; then
+          log "checking potential mounted key: $mount_cand (type: $(if [[ -f "$mount_cand" ]]; then echo 'file'; elif [[ -d "$mount_cand" ]]; then echo 'directory/mount'; else echo 'other'; fi))"
+          # For mounted files that appear as directories, try to read them as files
+          if [[ -r "$mount_cand" ]] && head -n 1 "$mount_cand" 2>/dev/null | grep -q "PRIVATE KEY\|OPENSSH PRIVATE KEY"; then
+            log "found mounted SSH key file: $mount_cand"
+            CANDS+=("$mount_cand")
+          elif [[ -d "$mount_cand" ]]; then
+            # If it's actually a directory, look inside it
+            mapfile -t SUB_FILES < <(find "$mount_cand" -maxdepth 2 -type f ! -name "*.pub" ! -name "known_hosts*" ! -name "config" 2>/dev/null || true)
+            CANDS+=("${SUB_FILES[@]}")
+          fi
+        fi
+      done
       
       log "found ${#CANDS[@]} candidate files: ${CANDS[*]}"
       
@@ -159,15 +177,44 @@ KNOWN_HOSTS_FILE="$GIT_KNOWN_HOSTS"
 
 # If GIT_KNOWN_HOSTS is a directory, use a file inside it
 if [[ -d "$GIT_KNOWN_HOSTS" ]]; then
-  KNOWN_HOSTS_FILE="$GIT_KNOWN_HOSTS/ssh_known_hosts"
-  log "GIT_KNOWN_HOSTS is a directory, using file: $KNOWN_HOSTS_FILE"
+  POTENTIAL_FILE="$GIT_KNOWN_HOSTS/ssh_known_hosts"
+  if [[ -f "$POTENTIAL_FILE" ]]; then
+    log "found existing known_hosts file: $POTENTIAL_FILE"
+    KNOWN_HOSTS_FILE="$POTENTIAL_FILE"
+  elif [[ -w "$GIT_KNOWN_HOSTS" ]]; then
+    log "GIT_KNOWN_HOSTS is a writable directory, using file: $POTENTIAL_FILE"
+    KNOWN_HOSTS_FILE="$POTENTIAL_FILE"
+  else
+    log "GIT_KNOWN_HOSTS directory is read-only, using persistent writable location"
+    # Use a persistent location in the user's SSH directory
+    mkdir -p "/home/rstudio/.ssh" 2>/dev/null || mkdir -p "/root/.ssh" 2>/dev/null || true
+    if [[ -d "/home/rstudio/.ssh" ]]; then
+      KNOWN_HOSTS_FILE="/home/rstudio/.ssh/known_hosts"
+    else
+      KNOWN_HOSTS_FILE="/root/.ssh/known_hosts"
+    fi
+    
+    # Copy existing file if available
+    if [[ -f "$POTENTIAL_FILE" ]]; then
+      cp "$POTENTIAL_FILE" "$KNOWN_HOSTS_FILE" 2>/dev/null || true
+      log "copied existing known_hosts to persistent location: $KNOWN_HOSTS_FILE"
+    else
+      log "using persistent known_hosts location: $KNOWN_HOSTS_FILE"
+    fi
+  fi
 fi
 
 # Create the known_hosts file if it doesn't exist
 if [[ ! -f "$KNOWN_HOSTS_FILE" ]]; then
   log "creating known_hosts file: $KNOWN_HOSTS_FILE"
-  mkdir -p "$(dirname "$KNOWN_HOSTS_FILE")"
-  touch "$KNOWN_HOSTS_FILE"
+  mkdir -p "$(dirname "$KNOWN_HOSTS_FILE")" 2>/dev/null || true
+  touch "$KNOWN_HOSTS_FILE" 2>/dev/null || {
+    log "failed to create known_hosts file, using fallback location"
+    # Final fallback to tmp if everything else fails
+    KNOWN_HOSTS_FILE="/tmp/ssh_known_hosts"
+    touch "$KNOWN_HOSTS_FILE"
+    log "using temporary known_hosts file: $KNOWN_HOSTS_FILE (will not persist between container restarts)"
+  }
 fi
 
 # Check if GitHub key is already present
