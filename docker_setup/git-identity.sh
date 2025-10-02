@@ -47,22 +47,9 @@ if [[ -z "${GIT_KEY_PATH}" ]]; then
       # Look for files directly in the directory
       mapfile -t CANDS < <(find "$search_path" -maxdepth 1 -type f ! -name "*.pub" ! -name "known_hosts*" ! -name "config" 2>/dev/null || true)
       
-      # Check for mounted SSH key files that appear as directories (Docker file mounts)
-      mapfile -t MOUNT_CANDS < <(find "$search_path" -maxdepth 1 -name "id_ed25519_*" 2>/dev/null || true)
-      for mount_cand in "${MOUNT_CANDS[@]}"; do
-        if [[ -e "$mount_cand" ]]; then
-          log "checking potential mounted key: $mount_cand (type: $(if [[ -f "$mount_cand" ]]; then echo 'file'; elif [[ -d "$mount_cand" ]]; then echo 'directory/mount'; else echo 'other'; fi))"
-          # For mounted files that appear as directories, try to read them as files
-          if [[ -r "$mount_cand" ]] && head -n 1 "$mount_cand" 2>/dev/null | grep -q "PRIVATE KEY\|OPENSSH PRIVATE KEY"; then
-            log "found mounted SSH key file: $mount_cand"
-            CANDS+=("$mount_cand")
-          elif [[ -d "$mount_cand" ]]; then
-            # If it's actually a directory, look inside it
-            mapfile -t SUB_FILES < <(find "$mount_cand" -maxdepth 2 -type f ! -name "*.pub" ! -name "known_hosts*" ! -name "config" 2>/dev/null || true)
-            CANDS+=("${SUB_FILES[@]}")
-          fi
-        fi
-      done
+      # Also look for SSH keys that match the id_ed25519_username pattern
+      mapfile -t PATTERN_CANDS < <(find "$search_path" -maxdepth 1 -type f -name "id_ed25519_*" 2>/dev/null || true)
+      CANDS+=("${PATTERN_CANDS[@]}")
       
       log "found ${#CANDS[@]} candidate files: ${CANDS[*]}"
       
