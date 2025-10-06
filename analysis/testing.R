@@ -11,30 +11,4 @@ fwrite(dt, "./outputs/testing_rsync_REMOTE.csv")
 ## Additional test analysis
 dt <- data.table(runif(n), rnorm(n), rgamma(n, 0.9))
 
-
-
-#####testing backsync#######
-
-####more testing### testiiiing
-
-
-####testtititiitititin
-
-
-####testtititiitititing
-
-
-
-####final testttittititititing
-
-
-
-### OHHH GOSH MORE TESTING ON REMOOOOOTEEEEE
-
-####evennnn moooooooore
-
-#####agaaiainnainaiann
-
-
-
-#####testiiiiiiiiing finallllllllllll2l2l22l2l2l
+#### This is the final test!
