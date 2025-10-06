@@ -12,3 +12,5 @@ fwrite(dt, "./outputs/testing_rsync_REMOTE.csv")
 dt <- data.table(runif(n), rnorm(n), rgamma(n, 0.9))
 
 #### This is the final test!
+
+### IT WORKED... now the uncommitted changes test!
