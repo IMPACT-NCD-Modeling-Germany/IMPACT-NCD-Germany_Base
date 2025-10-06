@@ -16,3 +16,5 @@ dt <- data.table(runif(n), rnorm(n), rgamma(n, 0.9))
 ### IT WORKED... now the uncommitted changes test!
 
 
+##conflict resolving test
+
