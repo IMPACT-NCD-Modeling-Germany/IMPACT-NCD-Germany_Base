@@ -17,7 +17,7 @@
 *.qs
 /*.qs
 
-# Compilation files of IMPACT NCD model package ###testingitafter bug fixes
+# Compilation files of IMPACT NCD model package ###testingitafter bug fixes222
 Rpackage/IMPACTncd_Ger_model_pkg/man/*.Rd
 Rpackage/IMPACTncd_Ger_model_pkg/man/*.o
 Rpackage/IMPACTncd_Ger_model_pkg/man/DESCRIPTION
