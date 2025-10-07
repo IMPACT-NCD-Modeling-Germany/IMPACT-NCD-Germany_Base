@@ -17,7 +17,7 @@
 *.qs
 /*.qs
 
-# Compilation files
+# Compilation files of model package
 Rpackage/IMPACTncd_Ger_model_pkg/man/*.Rd
 Rpackage/IMPACTncd_Ger_model_pkg/man/*.o
 Rpackage/IMPACTncd_Ger_model_pkg/man/DESCRIPTION
