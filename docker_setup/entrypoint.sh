@@ -194,7 +194,7 @@ setup_bidirectional_sync() {
                 --exclude='Rpackage/*/src/*.so' \
                 --exclude='Rpackage/*/src/*.dll' \
                 --exclude='.Rproj.user/' \
-                --exclude='.git' \
+                --exclude='.git/' \
                 --exclude='*.log' \
                 --exclude='.Rhistory' \
                 --exclude='.RData' \
@@ -237,8 +237,7 @@ setup_bidirectional_sync() {
                 CHANGED_FILES=$(echo "$ALL_CHANGED" | \
                     grep -v '\.Rproj\.user' | \
                     grep -v '\.rstudio' | \
-                    grep -v '\.git/index' | \
-                    grep -v '\.git/logs')
+                    grep -v '\.git')
                 
                 FILTERED_COUNT=$(echo "$ALL_CHANGED" | wc -l)
                 FINAL_COUNT=$(echo "$CHANGED_FILES" | grep -v '^$' | wc -l)
@@ -262,7 +261,7 @@ setup_bidirectional_sync() {
                             if [[ -n "$REL_PATH" && "$REL_PATH" != "$CONTAINER_REPO_PATH" ]]; then
                                 # Filter out excluded paths at file list level
                                 case "$REL_PATH" in
-                                    docker_setup/*|outputs/*|inputs/synthpop/*|.vscode/*|.Rproj.user/*|.rstudio/*|.git/index|.git/logs/*|*.log|.Rhistory|.RData|*.tmp|*.cache)
+                                    docker_setup/*|outputs/*|inputs/synthpop/*|.vscode/*|.Rproj.user/*|.rstudio/*|.git/*|.git|*.log|.Rhistory|.RData|*.tmp|*.cache)
                                         # Skip excluded files
                                         ;;
                                     Rpackage/*/DESCRIPTION|Rpackage/*/NAMESPACE|Rpackage/*/man/*|Rpackage/*/*.tar.gz|Rpackage/*/src/*.o|Rpackage/*/src/*.so|Rpackage/*/src/*.dll)
@@ -290,8 +289,7 @@ setup_bidirectional_sync() {
                             --exclude='Rpackage/*/src/*.so' \
                             --exclude='Rpackage/*/src/*.dll' \
                             --exclude='.Rproj.user/' \
-                            --exclude='.git/index' \
-                            --exclude='.git/logs/' \
+                            --exclude='.git/' \
                             --exclude='*.log' \
                             --exclude='.Rhistory' \
                             --exclude='.RData' \
