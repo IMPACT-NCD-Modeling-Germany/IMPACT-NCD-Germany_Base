@@ -17,6 +17,12 @@
 *.qs
 /*.qs
 
+# Compilation files
+Rpackage/IMPACTncd_Ger_model_pkg/man/*.Rd
+Rpackage/IMPACTncd_Ger_model_pkg/man/*.o
+Rpackage/IMPACTncd_Ger_model_pkg/man/DESCRIPTION
+Rpackage/IMPACTncd_Ger_model_pkg/man/NAMESPACE
+
 # Output files from R CMD check
 /*.Rcheck/
 
@@ -35,6 +41,7 @@ vignettes/*.pdf
 
 # OAuth2 token, see https://github.com/hadley/httr/releases/tag/v0.3
 .httr-oauth
+.env
 
 # knitr and R markdown default cache directories
 *_cache/
