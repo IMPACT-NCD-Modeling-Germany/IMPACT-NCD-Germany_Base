@@ -194,8 +194,7 @@ setup_bidirectional_sync() {
                 --exclude='Rpackage/*/src/*.so' \
                 --exclude='Rpackage/*/src/*.dll' \
                 --exclude='.Rproj.user/' \
-                --exclude='.git/index' \
-                --exclude='.git/logs/' \
+                --exclude='.git' \
                 --exclude='*.log' \
                 --exclude='.Rhistory' \
                 --exclude='.RData' \
