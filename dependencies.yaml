@@ -27,7 +27,7 @@
 - future.apply # Not in layer -> needed?
 - digest
 - piggyback # Not in layer -> needed?
-- igraph # For topological ordering of diseases # Not in layer -> needed?
+- igraph # For topological ordering of diseases
 - data.table
 - gamlss # only necessary when fitting the models
 - gamlss.tr, # only necessary when fitting the models
