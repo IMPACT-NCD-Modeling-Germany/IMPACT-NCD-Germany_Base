@@ -1,36 +1,34 @@
 - yaml
 - foreach
 - doParallel
-- doRNG
-- gamlss.dist
-- dqrng
-- qs
+- doRNG # Not in layer
+- gamlss.dist 
+- dqrng 
+- qs # Not in layer -> qs2?
 - fst
 - wrswoR
 - ggplot2
-- shiny
-- shinydashboard
-- shinyBS
-- bsplus # from https://ijlyttle.github.io/bsplus/index.html
-- shinythemes
-- shinyjs
-- shinyWidgets # http://shinyapps.dreamrs.fr/shinyWidgets/
-- DT
-- plotly
-- viridis
-- colourpicker
-- dichromat
+- shiny # Not in layer -> not needed!
+- shinydashboard # Not in layer -> not needed!
+- shinyBS # Not in layer -> not needed!
+- bsplus # from https://ijlyttle.github.io/bsplus/index.html # Not in layer -> not needed!
+- shinythemes # Not in layer -> not needed!
+- shinyjs # Not in layer -> not needed!
+- shinyWidgets # http://shinyapps.dreamrs.fr/shinyWidgets/ # Not in layer -> not needed!
+- DT # Not in layer -> not needed!
+- plotly # Not in layer -> not needed!
+- viridis # Not in layer -> viridisLite?
+- colourpicker # Not in layer -> needed?
+- dichromat # Not in layer -> needed?
 - htmltools
-- promises # needed for %...>%
-- future
-- doFuture
-- future.apply
+- promises # needed for %...>% # Not in layer -> needed?
+- future # Not in layer -> needed?
+- doFuture # Not in layer -> needed?
+- future.apply # Not in layer -> needed?
 - digest
-- piggyback
-- igraph # For topological ordering of diseases
+- piggyback # Not in layer -> needed?
+- igraph # For topological ordering of diseases # Not in layer -> needed?
 - data.table
 - gamlss # only necessary when fitting the models
-# - gamlss.tr, # only necessary when fitting the models
+- gamlss.tr, # only necessary when fitting the models
 - mc2d # only necessary for generating fixed_mc
-# - mc2d, # for rpert()
-# - shinydashboardPlus
