@@ -23,6 +23,7 @@ Rpackage/IMPACTncd_Ger_model_pkg/man/*.o
 Rpackage/IMPACTncd_Ger_model_pkg/man/DESCRIPTION
 Rpackage/IMPACTncd_Ger_model_pkg/man/NAMESPACE
 Rpackage/IMPACTncd_Ger_model_pkg/src/*.o
+Rpackage/IMPACTncd_Ger_model_pkg/src/*.so
 
 # Output files from R CMD check
 /*.Rcheck/
