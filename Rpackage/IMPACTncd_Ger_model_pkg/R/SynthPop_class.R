@@ -220,7 +220,7 @@ SynthPop <-
           self$pop[t0, on = c("pid", "year"), wt := i.wt]
           self$pop[is.na(all_cause_mrtl), wt := 0]
           self$pop[is.na(wt), wt := wt_immrtl]
-        } else {
+        } else { #TODO: Fix to allow flexible naming of baseline scenario!
           stop("The baseline scenario need to be named 'sc0' and simulated first, before any policy scenarios.") # TODO more informative message
         }
         
@@ -957,7 +957,7 @@ SynthPop <-
             #}
             #dt <- merge(dt, tbl, by = c(intersect(names(dt), names(tbl))))
 
-              dt[, sbp := my_qBCT(rank_sbp, mu, sigma, nu, tau, n_cpu = design_$sim_prm$n_cpu)] 
+              dt[, sbp := qBCCG(rank_sbp, mu, sigma, nu)] 
               dt[sbp > 1000, sbp := 1000] #Truncate sbp predictions to avoid unrealistic values.
               dt[, (col_nam) := NULL]
               dt[, `:=`(rank_sbp = NULL)]
@@ -995,7 +995,7 @@ SynthPop <-
             #} else {
               dt <- absorb_dt(dt, tbl)
             #}
-            dt[, bmi := my_qBCT(rank_bmi, mu, sigma, nu, tau, n_cpu = design_$sim_prm$n_cpu)] ## Jane: why 'my_qBCPEo()'?
+            dt[, bmi := my_qBCPEo(rank_bmi, mu, sigma, nu, tau, n_cpu = design_$sim_prm$n_cpu)] ## Jane: why 'my_qBCPEo()'?
             dt[bmi > 80, bmi := 80] #Truncate BMI predictions to avoid unrealistic values.
             dt[, rank_bmi := NULL]
             dt[, (col_nam) := NULL]

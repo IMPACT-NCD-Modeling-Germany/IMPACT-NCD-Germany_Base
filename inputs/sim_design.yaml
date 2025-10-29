@@ -1,4 +1,4 @@
-analysis_name: GLP1
+analysis_name: TEST
 iteration_n: 15
 iteration_n_final: 100
 clusternumber: 30 # explicit parallelisation
@@ -106,8 +106,8 @@ kismet: yes
 validation: no # or yes. Note, no yes/no
 max_prvl_for_outputs: 2 # duration 1 is incidence and 2 is prevalence
 iteration_n_max: 1000
-output_dir: ./outputs
-synthpop_dir: ./inputs/synthpop
+output_dir: /media/php-workstation/Storage_1/IMPACT_Storage/TEST/outputs
+synthpop_dir: /media/php-workstation/Storage_1/IMPACT_Storage/TEST/inputs/synthpop
 scenarios: ''
 cols_for_output:
 - pid # NEED TO be 1st (perhaps not anymore)

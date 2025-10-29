@@ -12,14 +12,14 @@ runif(1)
 
 # New runs?
 new_runs <- TRUE
-new_export <- TRUE
+new_export <- FALSE
 
 
 if(new_runs){
   
   # Create batches for batched simulation
   batch_size <- 10
-  iterations <- 200
+  iterations <- 20
   first_iteration <- 1
   batches <- split(seq(first_iteration, iterations + first_iteration - 1),
                    f = findInterval(seq(first_iteration, iterations + first_iteration - 1),
@@ -27,7 +27,7 @@ if(new_runs){
 }
 
 
-analysis_name <- "GLP_Test"
+analysis_name <- "testing_for_jane"
 
 IMPACTncd <- Simulation$new("./inputs/sim_design.yaml", analysis_name)
 
