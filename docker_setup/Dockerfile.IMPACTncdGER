@@ -5,7 +5,9 @@ LABEL maintainer="Karl Emmmert-Fees <karl.emmmert-fees@tum.de>"
 
 # Build argument to control source method: "copy" or "git"
 ARG SOURCE_METHOD=copy
-ARG REPO_NAME=IMPACT-NCD-Germany_Base
+ARG REPO_NAME
+# If REPO_NAME is empty, it will use the hardcoded default
+ENV FINAL_REPO_NAME=${REPO_NAME:-IMPACT-NCD-Germany_Base}
 
 # Method 1: Copy from build context (only when using copy method)
 # Build context should be the parent directory that contains docker_setup: docker build -f Dockerfile.IMPACTncdGER -t impactncd_germany ..
@@ -23,9 +25,6 @@ COPY . /tmp/build_context/
 
 # Set the repository name as an environment variable for subsequent steps
 RUN if [ "$SOURCE_METHOD" = "copy" ]; then \
-      DETECTED_REPO_NAME=$(basename "$(dirname "$(pwd)")") && \
-      FINAL_REPO_NAME="${REPO_NAME:-$DETECTED_REPO_NAME}"; \
-    else \
       FINAL_REPO_NAME="${REPO_NAME:-IMPACT-NCD-Germany_Base}"; \
     fi && \
     echo "CONTAINER_REPO_NAME=$FINAL_REPO_NAME" >> /etc/environment && \
