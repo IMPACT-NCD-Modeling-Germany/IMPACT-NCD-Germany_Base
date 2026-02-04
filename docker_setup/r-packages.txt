@@ -17,6 +17,7 @@ ggthemes
 igraph
 MASS
 parallelly
+qs
 qs2
 R.utils
 Rcpp
