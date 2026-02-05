@@ -26,18 +26,19 @@
 # https://github.com/Rdatatable/data.table/issues/1967
 
 cat("Initialising IMPACTncd_Ger model...\n\n")
-if (interactive() && !nzchar(system.file(package = "CKutils"))) {
-  if (!nzchar(system.file(package = "remotes"))) install.packages("remotes")
-  remotes::install_github("ChristK/CKutils", force = TRUE, upgrade = "never")
-}
+# if (interactive() && !nzchar(system.file(package = "CKutils"))) {
+#   if (!nzchar(system.file(package = "remotes"))) install.packages("remotes")
+#   remotes::install_github("ChristK/CKutils", force = TRUE, upgrade = "never")
+# }
 
 library(CKutils)
 options(rgl.useNULL = TRUE)  # suppress error by demography in rstudio server
-options(future.fork.enable = TRUE) # TODO remove for production
+options(future.fork.enable = TRUE) # TODO remove for all scripts!
 options(future.rng.onMisuse = "ignore") # Remove false warning
 options(datatable.verbose = FALSE)
 options(datatable.showProgress = FALSE)
-options(repos = c(CRAN = "https://cloud.r-project.org/"))
+
+#options(repos = c(CRAN = "https://cloud.r-project.org/"))
 
 dependencies(yaml::read_yaml("./dependencies.yaml"), verbose = TRUE, quiet = FALSE)
 

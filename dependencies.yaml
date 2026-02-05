@@ -1,32 +1,32 @@
 - yaml
 - foreach
 - doParallel
-- doRNG # Not in layer
+#- doRNG # Not in layer
 - gamlss.dist 
 - dqrng 
 - qs # Not in layer -> qs2?
 - fst
 - wrswoR
 - ggplot2
-- shiny # Not in layer -> not needed!
-- shinydashboard # Not in layer -> not needed!
-- shinyBS # Not in layer -> not needed!
-- bsplus # from https://ijlyttle.github.io/bsplus/index.html # Not in layer -> not needed!
-- shinythemes # Not in layer -> not needed!
-- shinyjs # Not in layer -> not needed!
-- shinyWidgets # http://shinyapps.dreamrs.fr/shinyWidgets/ # Not in layer -> not needed!
-- DT # Not in layer -> not needed!
-- plotly # Not in layer -> not needed!
-- viridis # Not in layer -> viridisLite?
-- colourpicker # Not in layer -> needed?
-- dichromat # Not in layer -> needed?
+#- shiny # Not in layer -> not needed!
+#- shinydashboard # Not in layer -> not needed!
+#- shinyBS # Not in layer -> not needed!
+#- bsplus # from https://ijlyttle.github.io/bsplus/index.html # Not in layer -> not needed!
+#- shinythemes # Not in layer -> not needed!
+#- shinyjs # Not in layer -> not needed!
+#- shinyWidgets # http://shinyapps.dreamrs.fr/shinyWidgets/ # Not in layer -> not needed!
+#- DT # Not in layer -> not needed!
+#- plotly # Not in layer -> not needed!
+#- viridis # Not in layer -> viridisLite?
+#- colourpicker # Not in layer -> needed?
+#- dichromat # Not in layer -> needed?
 - htmltools
-- promises # needed for %...>% # Not in layer -> needed?
-- future # Not in layer -> needed?
-- doFuture # Not in layer -> needed?
-- future.apply # Not in layer -> needed?
+#- promises # needed for %...>% # Not in layer -> needed?
+#- future # Not in layer -> needed?
+#- doFuture # Not in layer -> needed?
+#- future.apply # Not in layer -> needed?
 - digest
-- piggyback # Not in layer -> needed?
+#- piggyback # Not in layer -> needed?
 - igraph # For topological ordering of diseases
 - data.table
 - gamlss # only necessary when fitting the models
