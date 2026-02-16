@@ -48,6 +48,8 @@ vignettes/*.pdf
 .httr-oauth
 *.env
 .env
+/docker_setup/.env
+docker_setup/.env
 
 # knitr and R markdown default cache directories
 *_cache/
