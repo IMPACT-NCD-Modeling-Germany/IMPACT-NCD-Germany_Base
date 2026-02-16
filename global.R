@@ -33,11 +33,10 @@ cat("Initialising IMPACTncd_Ger model...\n\n")
 
 library(CKutils)
 options(rgl.useNULL = TRUE)  # suppress error by demography in rstudio server
-options(future.fork.enable = TRUE) # TODO remove for all scripts!
-options(future.rng.onMisuse = "ignore") # Remove false warning
+#options(future.fork.enable = TRUE) # TODO remove for production
+#options(future.rng.onMisuse = "ignore") # Remove false warning
 options(datatable.verbose = FALSE)
 options(datatable.showProgress = FALSE)
-
 #options(repos = c(CRAN = "https://cloud.r-project.org/"))
 
 dependencies(yaml::read_yaml("./dependencies.yaml"), verbose = TRUE, quiet = FALSE)
@@ -69,9 +68,10 @@ if (interactive()) {
       }
     }
     detach_package(IMPACTncdGer)
-    remotes::install_local("./Rpackage/IMPACTncd_Ger_model_pkg/",
-      force = TRUE,
-      upgrade = "never")
+    # remotes::install_local("./Rpackage/IMPACTncd_Ger_model_pkg/",
+    #   force = TRUE,
+    #   upgrade = "never")
+    install.packages("./Rpackage/IMPACTncd_Ger_model_pkg/", repos = NULL, type = "source")
 
     if (file.exists(snfile)) file.remove(snfile)
     qsave(
